@@ -1,0 +1,108 @@
+{# Kopie des Backend-Headers für das Package-Template. #}
+
+<header class="app-header">
+    <div class="app-header__left">
+        <a class="app-header__brand" href="/">HEITEC EvalCenter</a>
+        <nav class="app-header__nav" aria-label="Navigation">
+            <a href="/status">Status</a>
+            <a href="/admin/celery">Celery</a>
+        </nav>
+    </div>
+
+    <div class="app-header__right">
+        <span id="authStatus" class="app-header__auth muted">Nicht angemeldet</span>
+        <a id="loginLink" class="btn btn-secondary" href="/login">Anmelden</a>
+        <button id="logoutBtn" class="btn btn-secondary" type="button" style="display:none;">Abmelden</button>
+    </div>
+</header>
+
+<style>
+    .app-header { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:10px 12px; background:#ffffff; border:1px solid #eee; border-radius:6px; }
+    .app-header__left { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    .app-header__brand { font-weight:bold; text-decoration:none; color:#333; }
+    .app-header__nav { display:flex; gap:10px; flex-wrap:wrap; }
+    .app-header__nav a { color:#2196F3; text-decoration:none; }
+    .app-header__nav a:hover { text-decoration:underline; }
+    .app-header__right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .muted { color:#666; }
+
+    .btn { padding: 9px 14px; border-radius: 4px; text-decoration: none; display: inline-block; cursor:pointer; }
+    .btn-secondary { background: #f1f1f1; border: 1px solid #ddd; color: #333; }
+    .btn-secondary:hover { background: #e5e5e5; }
+</style>
+
+<script>
+(function(){
+    function getToken(){
+        const candidates = ['accessToken','access_token','token','auth_token','jwt'];
+        for (const k of candidates){
+            const v = window.localStorage.getItem(k) || window.sessionStorage.getItem(k);
+            if (v) return v;
+        }
+        const m = document.cookie.match(/(?:^|; )access_token=([^;]+)/);
+        if (m) return decodeURIComponent(m[1]);
+        return null;
+    }
+
+    function authHeader(token){
+        if (!token) return {};
+        const t = token.toLowerCase().startsWith('bearer ') ? token : ('Bearer ' + token);
+        return { 'Authorization': t };
+    }
+
+    async function refreshAuthUi(){
+        const token = getToken();
+        const authStatus = document.getElementById('authStatus');
+        const loginLink = document.getElementById('loginLink');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        if (!token){
+            authStatus.textContent = 'Nicht angemeldet';
+            loginLink.style.display = '';
+            logoutBtn.style.display = 'none';
+            return;
+        }
+
+        try{
+            const res = await fetch('/api/users/settings/me', { headers: Object.assign({'Cache-Control':'no-cache'}, authHeader(token)) });
+            if (!res.ok) throw new Error('not ok');
+            const me = await res.json();
+            authStatus.textContent = 'Angemeldet als ' + (me.login || 'User');
+            loginLink.style.display = 'none';
+            logoutBtn.style.display = '';
+        } catch(e){
+            authStatus.textContent = 'Nicht angemeldet';
+            loginLink.style.display = '';
+            logoutBtn.style.display = 'none';
+        }
+    }
+
+    async function logout(){
+        const token = getToken();
+        try{
+            await fetch('/api/logout', { method:'POST', headers: Object.assign({'Cache-Control':'no-cache'}, authHeader(token)) });
+        } finally {
+            const keys = ['accessToken','access_token','token','auth_token','jwt'];
+            for (const k of keys){
+                window.localStorage.removeItem(k);
+                window.sessionStorage.removeItem(k);
+            }
+            document.cookie = 'access_token=; path=/; max-age=0; SameSite=Lax';
+            window.location.href = '/';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+        const loginLink = document.getElementById('loginLink');
+        if (loginLink){
+            const next = encodeURIComponent(window.location.pathname + window.location.search);
+            loginLink.href = '/login?next=' + next;
+        }
+
+        refreshAuthUi();
+    });
+})();
+</script>

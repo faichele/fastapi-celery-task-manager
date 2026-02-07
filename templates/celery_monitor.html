@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celery Admin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+            margin: 0 0 10px 0;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        label {
+            font-weight: bold;
+        }
+        select, input[type="number"], input[type="text"] {
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background-color: #2196F3;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0b7dda;
+        }
+        .btn-danger {
+            background-color: #cc0000;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #b30000;
+        }
+        .btn-secondary {
+            background-color: #f1f1f1;
+            border: 1px solid #ddd;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background-color: #e5e5e5;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f9f9f9;
+        }
+        .pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            background: #eee;
+        }
+        .pill-active { background: #e8f5e9; color: #1b5e20; }
+        .pill-reserved { background: #fff3e0; color: #e65100; }
+        .pill-scheduled { background: #e3f2fd; color: #0d47a1; }
+        .mono { font-family: Consolas, 'Courier New', monospace; }
+        .small { font-size: 12px; color: #555; }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+            margin-top: 10px;
+        }
+        .status-success {
+            background-color: #e6ffe6;
+            color: #008800;
+            border: 1px solid #99cc99;
+        }
+        .status-error {
+            background-color: #ffeeee;
+            color: #cc0000;
+            border: 1px solid #ffcccc;
+        }
+        details summary { cursor: pointer; }
+    </style>
+</head>
+<body>
+{% include "_header.html" %}
+
+<header>
+    <div>
+        <h1>Celery Admin</h1>
+        <div class="small">Diese Seite ruft die REST-Endpunkte unter <span class="mono">/api/celery</span> auf (Admin-geschützt).</div>
+    </div>
+    <div class="controls">
+        <button class="btn-secondary" onclick="window.location='/'">Startseite</button>
+        <button class="btn-secondary" id="btnRefresh">Aktualisieren</button>
+    </div>
+</header>
+
+<div class="container">
+    <h2>Ansicht</h2>
+    <div class="controls">
+        <label for="workerFilter">Worker:</label>
+        <select id="workerFilter">
+            <option value="">(alle)</option>
+        </select>
+
+        <label for="autoRefresh">Auto-Refresh:</label>
+        <select id="autoRefresh">
+            <option value="off">aus</option>
+            <option value="5000">5s</option>
+            <option value="10000">10s</option>
+            <option value="30000">30s</option>
+        </select>
+
+        <label for="terminate">Revoke terminate:</label>
+        <select id="terminate">
+            <option value="false">false</option>
+            <option value="true">true</option>
+        </select>
+
+        <label for="signal">Signal:</label>
+        <input id="signal" type="text" value="TERM" style="width: 90px;" />
+
+        <button class="btn-danger" id="btnPurge" title="Löscht Messages aus den Queues (vorsichtig!)">Queues leeren (purge)</button>
+    </div>
+
+    <div id="statusBox" class="status"></div>
+</div>
+
+<div class="container">
+    <h2>Worker</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Pool</th>
+                <th>Concurrency</th>
+                <th>Total Tasks</th>
+                <th>Broker</th>
+                <th>Aktionen</th>
+            </tr>
+        </thead>
+        <tbody id="workersBody"></tbody>
+    </table>
+</div>
+
+<div class="container">
+    <h2>Laufende / geplante Tasks</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Task</th>
+                <th>Task-ID</th>
+                <th>Worker</th>
+                <th>Args / Kwargs</th>
+                <th>ETA / Start</th>
+                <th>Aktionen</th>
+            </tr>
+        </thead>
+        <tbody id="tasksBody"></tbody>
+    </table>
+</div>
+
+<div class="container">
+    <h2>Verfügbare (registered) Tasks</h2>
+    <details open>
+        <summary>Liste anzeigen</summary>
+        <table>
+            <thead>
+            <tr>
+                <th>Task-Name</th>
+            </tr>
+            </thead>
+            <tbody id="registeredBody"></tbody>
+        </table>
+    </details>
+</div>
+
+<script>
+    function getAuthHeader() {
+        const candidates = ['access_token', 'token', 'auth_token', 'jwt'];
+        for (const k of candidates) {
+            const v = window.localStorage.getItem(k) || window.sessionStorage.getItem(k);
+            if (v) {
+                if (v.toLowerCase().startsWith('bearer ')) return { 'Authorization': v };
+                return { 'Authorization': 'Bearer ' + v };
+            }
+        }
+        return {};
+    }
+
+    async function apiFetch(url, options) {
+        const opts = options || {};
+        opts.headers = Object.assign(
+            { 'Content-Type': 'application/json' },
+            opts.headers || {},
+            getAuthHeader()
+        );
+
+        const res = await fetch(url, opts);
+        if (!res.ok) {
+            let detail = '';
+            try {
+                const body = await res.json();
+                detail = body && body.detail ? body.detail : JSON.stringify(body);
+            } catch (e) {
+                try { detail = await res.text(); } catch (e2) { detail = ''; }
+            }
+            throw new Error(res.status + ' ' + res.statusText + (detail ? (': ' + detail) : ''));
+        }
+        if (res.status === 204) return null;
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) return await res.json();
+        return await res.text();
+    }
+
+    function showStatus(message, kind) {
+        const box = document.getElementById('statusBox');
+        box.className = 'status ' + (kind === 'error' ? 'status-error' : 'status-success');
+        box.style.display = 'block';
+        box.textContent = message;
+        window.clearTimeout(window.__statusTimer);
+        window.__statusTimer = window.setTimeout(() => { box.style.display = 'none'; }, 6000);
+    }
+
+    function escapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        return String(s)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function pillForQueue(q) {
+        const cls = q === 'active' ? 'pill pill-active'
+            : (q === 'reserved' ? 'pill pill-reserved'
+                : (q === 'scheduled' ? 'pill pill-scheduled' : 'pill'));
+        return '<span class="' + cls + '">' + escapeHtml(q || '') + '</span>';
+    }
+
+    function safeJsonPreview(v) {
+        try {
+            if (v === null || v === undefined) return '';
+            const s = JSON.stringify(v);
+            return s.length > 400 ? (s.slice(0, 400) + ' …') : s;
+        } catch (e) {
+            return String(v);
+        }
+    }
+
+    async function loadWorkers() {
+        const workerFilter = document.getElementById('workerFilter').value;
+        const qs = workerFilter ? ('?worker=' + encodeURIComponent(workerFilter)) : '';
+        const workers = await apiFetch('/api/celery/workers' + qs, { method: 'GET' });
+
+        const sel = document.getElementById('workerFilter');
+        const current = sel.value;
+        const seen = new Set();
+        sel.innerHTML = '<option value="">(alle)</option>';
+        for (const w of (workers || [])) {
+            if (!w || !w.name) continue;
+            if (seen.has(w.name)) continue;
+            seen.add(w.name);
+            const opt = document.createElement('option');
+            opt.value = w.name;
+            opt.textContent = w.name;
+            sel.appendChild(opt);
+        }
+        sel.value = current;
+
+        const tbody = document.getElementById('workersBody');
+        tbody.innerHTML = '';
+        for (const w of (workers || [])) {
+            const tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td class="mono">' + escapeHtml(w.name) + '</td>' +
+                '<td>' + escapeHtml(w.pool_implementation) + '</td>' +
+                '<td>' + escapeHtml(w.max_concurrency) + '</td>' +
+                '<td>' + escapeHtml(w.total_tasks) + '</td>' +
+                '<td>' + escapeHtml(w.broker_transport) + '</td>' +
+                '<td>' +
+                    '<button class="btn-danger" data-worker="' + escapeHtml(w.name) + '">Shutdown</button>' +
+                '</td>';
+            tbody.appendChild(tr);
+        }
+
+        for (const btn of tbody.querySelectorAll('button[data-worker]')) {
+            btn.addEventListener('click', async (ev) => {
+                const workerName = ev.target.getAttribute('data-worker');
+                if (!workerName) return;
+                const ok = window.confirm('Worker wirklich shutdown senden?\n' + workerName);
+                if (!ok) return;
+                try {
+                    await apiFetch('/api/celery/workers/' + encodeURIComponent(workerName) + '/shutdown', {
+                        method: 'POST',
+                        body: JSON.stringify({ warm: true })
+                    });
+                    showStatus('Shutdown gesendet an ' + workerName, 'success');
+                    await refreshAll();
+                } catch (e) {
+                    showStatus('Shutdown fehlgeschlagen: ' + e.message, 'error');
+                }
+            });
+        }
+    }
+
+    async function loadTasks() {
+        const workerFilter = document.getElementById('workerFilter').value;
+        const params = new URLSearchParams();
+        params.append('states', 'active');
+        params.append('states', 'reserved');
+        params.append('states', 'scheduled');
+        if (workerFilter) params.append('worker', workerFilter);
+
+        const tasks = await apiFetch('/api/celery/tasks?' + params.toString(), { method: 'GET' });
+        const tbody = document.getElementById('tasksBody');
+        tbody.innerHTML = '';
+
+        for (const t of (tasks || [])) {
+            const tr = document.createElement('tr');
+            const etaOrStart = t.queue === 'scheduled' ? (t.eta || '') : (t.time_start || '');
+            tr.innerHTML =
+                '<td>' + pillForQueue(t.queue) + '</td>' +
+                '<td class="mono">' + escapeHtml(t.name) + '</td>' +
+                '<td class="mono">' + escapeHtml(t.id) + '</td>' +
+                '<td class="mono">' + escapeHtml(t.worker) + '</td>' +
+                '<td class="mono"><div class="small">args:</div>' + escapeHtml(safeJsonPreview(t.args)) +
+                    '<div class="small" style="margin-top:6px;">kwargs:</div>' + escapeHtml(safeJsonPreview(t.kwargs)) +
+                '</td>' +
+                '<td class="mono">' + escapeHtml(etaOrStart) + '</td>' +
+                '<td>' +
+                    '<button class="btn-danger" data-task-id="' + escapeHtml(t.id) + '">Stop (revoke)</button>' +
+                '</td>';
+            tbody.appendChild(tr);
+        }
+
+        for (const btn of tbody.querySelectorAll('button[data-task-id]')) {
+            btn.addEventListener('click', async (ev) => {
+                const taskId = ev.target.getAttribute('data-task-id');
+                if (!taskId) return;
+                const terminate = document.getElementById('terminate').value === 'true';
+                const signal = (document.getElementById('signal').value || 'TERM').trim();
+                const ok = window.confirm('Task revoke senden?\n' + taskId + (terminate ? ('\nterminate=true signal=' + signal) : ''));
+                if (!ok) return;
+                try {
+                    await apiFetch('/api/celery/tasks/' + encodeURIComponent(taskId) + '/revoke', {
+                        method: 'POST',
+                        body: JSON.stringify({ terminate: terminate, signal: signal })
+                    });
+                    showStatus('Revoke gesendet für ' + taskId, 'success');
+                    await refreshAll();
+                } catch (e) {
+                    showStatus('Revoke fehlgeschlagen: ' + e.message, 'error');
+                }
+            });
+        }
+    }
+
+    async function loadRegisteredTasks() {
+        const tasks = await apiFetch('/api/celery/tasks/registered', { method: 'GET' });
+        const tbody = document.getElementById('registeredBody');
+        tbody.innerHTML = '';
+        for (const t of (tasks || [])) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td class="mono">' + escapeHtml(t) + '</td>';
+            tbody.appendChild(tr);
+        }
+    }
+
+    async function refreshAll() {
+        try {
+            await loadWorkers();
+            await loadTasks();
+            await loadRegisteredTasks();
+        } catch (e) {
+            showStatus('Fehler beim Laden: ' + e.message + ' (Hinweis: ist ein Admin-Bearer-Token vorhanden?)', 'error');
+        }
+    }
+
+    function setupAutoRefresh() {
+        const sel = document.getElementById('autoRefresh');
+        function apply() {
+            const v = sel.value;
+            if (window.__autoTimer) {
+                window.clearInterval(window.__autoTimer);
+                window.__autoTimer = null;
+            }
+            if (v !== 'off') {
+                const ms = parseInt(v, 10);
+                if (!isNaN(ms) && ms > 0) {
+                    window.__autoTimer = window.setInterval(() => { refreshAll(); }, ms);
+                }
+            }
+        }
+        sel.addEventListener('change', apply);
+        apply();
+    }
+
+    document.getElementById('btnRefresh').addEventListener('click', () => refreshAll());
+    document.getElementById('workerFilter').addEventListener('change', () => refreshAll());
+
+    document.getElementById('btnPurge').addEventListener('click', async () => {
+        const ok = window.confirm('Queues wirklich leeren (purge)?');
+        if (!ok) return;
+        try {
+            const r = await apiFetch('/api/celery/queues/purge', { method: 'POST' });
+            showStatus('Purged: ' + safeJsonPreview(r), 'success');
+            await refreshAll();
+        } catch (e) {
+            showStatus('Purge fehlgeschlagen: ' + e.message, 'error');
+        }
+    });
+
+    setupAutoRefresh();
+    refreshAll();
+</script>
+</body>
+</html>

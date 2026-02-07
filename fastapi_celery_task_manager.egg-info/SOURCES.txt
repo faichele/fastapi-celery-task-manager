@@ -1,0 +1,12 @@
+README.md
+__init__.py
+pyproject.toml
+fastapi_celery_task_manager/celery_admin.py
+fastapi_celery_task_manager/ui.py
+fastapi_celery_task_manager.egg-info/PKG-INFO
+fastapi_celery_task_manager.egg-info/SOURCES.txt
+fastapi_celery_task_manager.egg-info/dependency_links.txt
+fastapi_celery_task_manager.egg-info/requires.txt
+fastapi_celery_task_manager.egg-info/top_level.txt
+templates/README.md
+templates/celery_monitor.html

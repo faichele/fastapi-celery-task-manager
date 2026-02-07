@@ -1,3 +1,16 @@
+Metadata-Version: 2.4
+Name: fastapi-celery-manager
+Version: 0.0.3
+Summary: FastAPI router + Jinja2 template for basic Celery administration (inspect/enqueue/control).
+Author-email: Fabian Aichele <aichele@zykl.io>
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.104.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: celery>=5.3.0
+Requires-Dist: jinja2>=3.1.0
+
 # fastapi-celery-task-manager
 
 Kleines, eigenständiges Paket mit einem FastAPI-`APIRouter` für grundlegende Celery-Administration (Inspect/Enqueue/Control) sowie einem Jinja2-Template für eine simple Admin-UI.

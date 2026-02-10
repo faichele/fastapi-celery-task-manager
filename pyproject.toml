@@ -9,7 +9,6 @@ description = "FastAPI router + Jinja2 template for basic Celery administration 
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Fabian Aichele", email = "aichele@zykl.io"}]
-license = { text = "MIT" }
 
 dependencies = [
   "fastapi>=0.104.0",
@@ -31,4 +30,5 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["F", "I", "UP"]
+
 

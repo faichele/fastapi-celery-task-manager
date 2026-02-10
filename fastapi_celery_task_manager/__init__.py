@@ -1,4 +1,4 @@
-"""fastapi_celery_manager
+"""fastapi_celery_task_manager
 
 Reusable FastAPI routers for basic Celery administration.
 

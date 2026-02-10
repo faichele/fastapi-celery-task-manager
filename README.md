@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from celery_tasks.celery_config import app as celery_app
 from utils.deps import get_current_active_admin
 
-from fastapi_celery_manager import (
+from fastapi_celery_task_manager import (
     get_celery_admin_router,
     get_celery_admin_ui_router,
 )

@@ -64,7 +64,7 @@ def get_celery_admin_ui_router(
     """Create a small router providing an admin-protected HTML page.
 
     If `include_package_templates=True`, the function will also load templates from
-    `fastapi_celery_manager/templates` inside the installed package.
+    `fastapi_celery_task_manager/templates` inside the installed package.
     """
 
     router = APIRouter(prefix=prefix, include_in_schema=False)
@@ -74,7 +74,7 @@ def get_celery_admin_ui_router(
     if templates_dir:
         loaders.append(FileSystemLoader(templates_dir))
     if include_package_templates:
-        loaders.append(PackageLoader("fastapi_celery_manager", "../templates"))
+        loaders.append(PackageLoader("fastapi_celery_task_manager", "../templates"))
 
     templates = Jinja2Templates(directory=".")
     templates.env.loader = ChoiceLoader(loaders) if len(loaders) > 1 else loaders[0]
@@ -116,7 +116,7 @@ def get_celery_admin_ui_router_with_login_redirect(
     if templates_dir:
         loaders.append(FileSystemLoader(templates_dir))
     if include_package_templates:
-        loaders.append(PackageLoader("fastapi_celery_manager", "../templates"))
+        loaders.append(PackageLoader("fastapi_celery_task_manager", "../templates"))
 
     templates = Jinja2Templates(directory=".")
     templates.env.loader = ChoiceLoader(loaders) if len(loaders) > 1 else loaders[0]

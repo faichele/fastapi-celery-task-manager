@@ -1,1 +1,0 @@
-fastapi_celery_task_manager

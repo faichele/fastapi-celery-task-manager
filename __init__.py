@@ -1,18 +1,7 @@
-"""fastapi_celery_manager
+"""fastapi_celery_manager – Projektroot
 
-Reusable FastAPI routers for basic Celery administration.
-
-Public API:
-- get_celery_admin_router: REST endpoints under /api/celery
-- get_celery_admin_ui_router: HTML page rendering celery_monitor.html
+Diese Datei ist nur für die lokale Entwicklung im Repo relevant und wird
+beim Installieren des Pakets nicht mit eingebunden.
+Das eigentliche Paket liegt im Unterordner fastapi_celery_task_manager/.
 """
 
-from .fastapi_celery_task_manager import get_celery_admin_router
-from .fastapi_celery_task_manager.ui import get_celery_admin_ui_router
-from .fastapi_celery_task_manager.ui import get_celery_admin_ui_router_with_login_redirect
-
-__all__ = [
-    "get_celery_admin_router",
-    "get_celery_admin_ui_router",
-    "get_celery_admin_ui_router_with_login_redirect"
-]

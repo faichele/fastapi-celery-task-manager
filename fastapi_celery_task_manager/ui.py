@@ -87,7 +87,11 @@ def get_celery_admin_ui_router(
         ctx: Dict[str, Any] = {"request": request, "title": "Celery Admin"}
         if extra_context:
             ctx.update(extra_context)
-        return templates.TemplateResponse(template_name, ctx)
+        return templates.TemplateResponse(
+            request,
+            template_name,
+            ctx
+        )
 
     return router
 
@@ -128,7 +132,11 @@ def get_celery_admin_ui_router_with_login_redirect(
         ctx: Dict[str, Any] = {"request": request, "title": "Celery Admin"}
         if extra_context:
             ctx.update(extra_context)
-        return templates.TemplateResponse(template_name, ctx)
+        return templates.TemplateResponse(
+            request,
+            template_name,
+            ctx
+        )
 
     # Register route with redirect-on-auth-error behaviour.
     route = _RedirectOnAuthErrorRoute(

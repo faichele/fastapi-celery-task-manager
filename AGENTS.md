@@ -53,3 +53,17 @@ pyproject.toml for consistency`). Keep commits narrowly scoped and describe
 the user-visible change. Pull requests should explain behavior and
 configuration impact, link relevant issues, include verification commands,
 and provide UI screenshots when modifying `templates/celery_monitor.html`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The default five canonical triage labels are used. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repository uses the single-context domain-doc layout. See `docs/agents/domain.md`.

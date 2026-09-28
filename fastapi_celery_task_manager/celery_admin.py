@@ -20,6 +20,7 @@ from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from .dispatch import dispatch_task
 
 # ---------------------------------------------------------------------------
 # Pydantic Schemas
@@ -114,22 +115,16 @@ CeleryTaskState = Literal["active", "reserved", "scheduled"]
 # Helpers
 # ---------------------------------------------------------------------------
 
+# Historical default, kept only for backward compatibility with the
+# EvalCenter backend this router was extracted from. New applications should
+# pass their own `task_queue_mapping` to `get_celery_admin_router` instead of
+# relying on this; see `dispatch.resolve_queue` for the matching semantics.
 TASK_QUEUE_MAPPING: Dict[str, Dict[str, str]] = {
     "celery_tasks.celery_file_system_monitor.*": {"queue": "file_system_monitors", "routing_key": "file_system_monitors"},
     "celery_tasks.celery_report_processor.*": {"queue": "report_processing", "routing_key": "report_processing.default"},
     "celery_tasks.celery_image_processor.*": {"queue": "image_processing", "routing_key": "image_processing.default"},
     "celery_tasks.celery_volume_processor.*": {"queue": "volume_processing", "routing_key": "volume_processing.default"},
 }
-
-
-def _get_queue_for_task(task_name: str) -> Optional[Dict[str, str]]:
-    import re
-
-    for pattern, queue_info in TASK_QUEUE_MAPPING.items():
-        regex_pattern = pattern.replace("*", ".*")
-        if re.match(regex_pattern, task_name):
-            return queue_info
-    return None
 
 
 class _Inspector:
@@ -160,8 +155,16 @@ def get_celery_admin_router(
     celery_app: Celery,
     admin_dependency: AdminDependency,
     prefix: str = "/api/celery",
+    task_queue_mapping: Optional[Dict[str, Dict[str, str]]] = TASK_QUEUE_MAPPING,
 ) -> APIRouter:
-    """Create an APIRouter with admin-protected Celery endpoints."""
+    """Create an APIRouter with admin-protected Celery endpoints.
+
+    `task_queue_mapping` is used by `POST /tasks/enqueue` to infer a
+    task's queue/routing_key when the caller doesn't supply them
+    explicitly (see `dispatch.resolve_queue`). It defaults to the
+    historical EvalCenter mapping for backward compatibility; pass your
+    own mapping (or `None` to disable inference) for other applications.
+    """
 
     router = APIRouter(prefix=prefix, tags=["celery"], dependencies=[Depends(admin_dependency)])
 
@@ -285,33 +288,28 @@ def get_celery_admin_router(
 
     @router.post("/tasks/enqueue", response_model=EnqueueTaskResponse, status_code=201)
     def enqueue_task(req: EnqueueTaskRequest) -> EnqueueTaskResponse:
-        queue = req.queue
-        routing_key = req.routing_key
-
-        if not queue or not routing_key:
-            queue_info = _get_queue_for_task(req.task_name)
-            if queue_info:
-                queue = queue or queue_info.get("queue")
-                routing_key = routing_key or queue_info.get("routing_key")
-
-        task_options: Dict[str, Any] = {}
-        if queue:
-            task_options["queue"] = queue
-        if routing_key:
-            task_options["routing_key"] = routing_key
-        if req.countdown is not None:
-            task_options["countdown"] = req.countdown
-        if req.eta is not None:
-            task_options["eta"] = req.eta
-        if req.expires is not None:
-            task_options["expires"] = req.expires
-
         try:
-            result = celery_app.send_task(req.task_name, args=req.args, kwargs=req.kwargs, **task_options)
+            result = dispatch_task(
+                celery_app,
+                req.task_name,
+                args=req.args,
+                kwargs=req.kwargs,
+                queue=req.queue,
+                routing_key=req.routing_key,
+                countdown=req.countdown,
+                eta=req.eta,
+                expires=req.expires,
+                task_queue_mapping=task_queue_mapping,
+            )
         except Exception as e:
             raise HTTPException(status_code=503, detail=f"Failed to enqueue task: {e}") from e
 
-        return EnqueueTaskResponse(task_id=result.id, task_name=req.task_name, queue=queue, routing_key=routing_key)
+        return EnqueueTaskResponse(
+            task_id=result.task_id,
+            task_name=result.task_name,
+            queue=result.queue,
+            routing_key=result.routing_key,
+        )
 
     @router.post("/tasks/{task_id}/revoke", response_model=RevokeTaskResponse)
     def revoke_task(task_id: str, req: RevokeTaskRequest) -> RevokeTaskResponse:

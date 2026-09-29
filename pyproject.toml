@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fastapi-celery-task-manager"
-version = "0.1.0"
+version = "0.1.1"
 description = "FastAPI router + Jinja2 template for Celery administration (inspect/enqueue/control), plus a generic worker/beat CLI and task dispatch API."
 readme = "README.md"
 requires-python = ">=3.9"

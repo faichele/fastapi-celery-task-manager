@@ -133,9 +133,8 @@ def get_celery_admin_ui_router_with_login_redirect(
         if extra_context:
             ctx.update(extra_context)
         return templates.TemplateResponse(
-            request,
-            template_name,
-            ctx
+            name=template_name if template_name is not None else "celery_monitor.html",
+            context=ctx
         )
 
     # Register route with redirect-on-auth-error behaviour.
